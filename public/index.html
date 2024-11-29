@@ -24,6 +24,21 @@
             color: #1a73e8;
             margin-bottom: 30px;
         }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .url-input {
+            width: 80%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        .url-input:focus {
+            border-color: #1a73e8;
+            outline: none;
+        }
         .download-btn {
             background-color: #1a73e8;
             color: white;
@@ -45,6 +60,7 @@
             margin-top: 20px;
             padding: 10px;
             border-radius: 5px;
+            display: none;
         }
         .status.error {
             color: #721c24;
@@ -61,17 +77,27 @@
             background-color: #d1ecf1;
             border: 1px solid #bee5eb;
         }
+        .example-url {
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Video Downloader</h1>
+        <div class="input-group">
+            <input type="url" id="urlInput" class="url-input" placeholder="Ingresa la URL del video" required>
+            <p class="example-url">Ejemplo: https://example.com/video.mp4</p>
+        </div>
         <button id="downloadBtn" class="download-btn">Descargar Video</button>
-        <div id="status" class="status" style="display: none;"></div>
+        <div id="status" class="status"></div>
     </div>
 
     <script>
         const downloadBtn = document.getElementById('downloadBtn');
+        const urlInput = document.getElementById('urlInput');
         const statusEl = document.getElementById('status');
 
         function updateStatus(message, type) {
@@ -80,12 +106,33 @@
             statusEl.className = `status ${type}`;
         }
 
+        function validateUrl(url) {
+            try {
+                new URL(url);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
         async function downloadVideo() {
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                updateStatus('Por favor, ingresa una URL', 'error');
+                return;
+            }
+
+            if (!validateUrl(url)) {
+                updateStatus('Por favor, ingresa una URL válida', 'error');
+                return;
+            }
+
             try {
                 downloadBtn.disabled = true;
                 updateStatus('Iniciando descarga...', 'loading');
 
-                const response = await fetch('/.netlify/functions/download-video');
+                const response = await fetch(`/.netlify/functions/download-video?url=${encodeURIComponent(url)}`);
                 
                 if (!response.ok) {
                     const errorData = await response.json();
@@ -93,13 +140,13 @@
                 }
 
                 const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
+                const downloadUrl = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.href = url;
+                a.href = downloadUrl;
                 a.download = 'video.mp4';
                 document.body.appendChild(a);
                 a.click();
-                window.URL.revokeObjectURL(url);
+                window.URL.revokeObjectURL(downloadUrl);
                 document.body.removeChild(a);
 
                 updateStatus('¡Descarga completada!', 'success');
@@ -112,6 +159,13 @@
         }
 
         downloadBtn.addEventListener('click', downloadVideo);
+        
+        // También permitir presionar Enter en el input
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                downloadVideo();
+            }
+        });
     </script>
 </body>
 </html>
