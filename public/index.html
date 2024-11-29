@@ -37,9 +37,29 @@
         .download-btn:hover {
             background-color: #1557b0;
         }
+        .download-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
         .status {
             margin-top: 20px;
-            color: #666;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status.error {
+            color: #721c24;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        .status.success {
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .status.loading {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
         }
     </style>
 </head>
@@ -47,22 +67,29 @@
     <div class="container">
         <h1>Video Downloader</h1>
         <button id="downloadBtn" class="download-btn">Descargar Video</button>
-        <p id="status" class="status"></p>
+        <div id="status" class="status" style="display: none;"></div>
     </div>
 
     <script>
-        document.getElementById('downloadBtn').addEventListener('click', async () => {
-            const statusEl = document.getElementById('status');
-            const btn = document.getElementById('downloadBtn');
-            
-            try {
-                statusEl.textContent = 'Iniciando descarga...';
-                btn.disabled = true;
+        const downloadBtn = document.getElementById('downloadBtn');
+        const statusEl = document.getElementById('status');
 
-                const response = await fetch('/api/download-video');
+        function updateStatus(message, type) {
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+            statusEl.className = `status ${type}`;
+        }
+
+        async function downloadVideo() {
+            try {
+                downloadBtn.disabled = true;
+                updateStatus('Iniciando descarga...', 'loading');
+
+                const response = await fetch('/.netlify/functions/download-video');
                 
                 if (!response.ok) {
-                    throw new Error('Error en la descarga');
+                    const errorData = await response.json();
+                    throw new Error(errorData.details || 'Error en la descarga');
                 }
 
                 const blob = await response.blob();
@@ -75,14 +102,16 @@
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
 
-                statusEl.textContent = '¡Descarga completada!';
+                updateStatus('¡Descarga completada!', 'success');
             } catch (error) {
-                statusEl.textContent = 'Error: No se pudo descargar el video';
                 console.error('Error:', error);
+                updateStatus(`Error: ${error.message}`, 'error');
             } finally {
-                btn.disabled = false;
+                downloadBtn.disabled = false;
             }
-        });
+        }
+
+        downloadBtn.addEventListener('click', downloadVideo);
     </script>
 </body>
 </html>
